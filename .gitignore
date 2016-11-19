@@ -87,3 +87,9 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Linux
+*~
+
+# Test folder mat files
+test/*.mat

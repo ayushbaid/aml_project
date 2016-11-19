@@ -149,11 +149,11 @@ for dataset in training_mat_set:
         end_idx = start_idx+num_items
         
 print("Low Sparsity Optimization Finished!")
-saver.save(sess,"./trainedModelNorm_lowsparse.ckpt")
+saver.save(sess,"./trainedModelNorm_highsparse.ckpt")
 
 w_np = {'U':sess.run(W)}
 # Storing w as mat file
-savemat('dict_lower.mat', w_np)
+savemat('dict_higher.mat', w_np)
 
 
 

@@ -8,12 +8,12 @@ function img = viewColorPatches(inpPatches,patchSize)
 
 
     % Sort patches according to variance
-    var_patches = var(inpPatches(1:temp,:)) + ...
-                    var(inpPatches(temp+1:temp*2,:)) + ...
-                    var(inpPatches(2*temp+1:3*temp));
-    [~, idx] = sort(var_patches, 'descend');
+    % var_patches = var(inpPatches(1:temp,:)) + ...
+    %                 var(inpPatches(temp+1:temp*2,:)) + ...
+    %                 var(inpPatches(2*temp+1:3*temp));
+    % [~, idx] = sort(var_patches, 'descend');
 
-    inpPatches = inpPatches(:, idx);
+    % inpPatches = inpPatches(:, idx);
     
     imSize = patchSize*floor(sqrt(numPatches));
     

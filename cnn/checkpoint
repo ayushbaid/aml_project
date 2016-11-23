@@ -1,0 +1,4 @@
+model_checkpoint_path: "trainedModelNorm_blue_highsparse.ckpt"
+all_model_checkpoint_paths: "trainedModelNorm_blue_lowsparse.ckpt"
+all_model_checkpoint_paths: "trainedModelNorm_blue_medsparse.ckpt"
+all_model_checkpoint_paths: "trainedModelNorm_blue_highsparse.ckpt"

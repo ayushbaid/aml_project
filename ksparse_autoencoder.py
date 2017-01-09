@@ -1,27 +1,51 @@
-
-# coding: utf-8
-
-# In[3]:
-
 import tensorflow as tf
 import numpy as np
 from scipy.io import loadmat, savemat
+from scipy.misc import imsave
 import os
+import math
+
+### To display patches in a collage
+
+def create_image(patches, patch_size):
+    num_patches = np.shape(patches)[1]
+
+    im_size = patch_size*math.floor(math.sqrt(num_patches))
+
+    # Performing contrast stretching for each patch
+    min_vals = np.amin(patches, axis=0)
+    max_vals = np.amax(patches, axis=0)
+    patches = np.divide(patches-min_vals, max_vals-min_vals)
+
+    img = np.zeros((im_size, im_size, 3))
+
+    num_blocks = im_size//patch_size
+
+    for row_idx in range(0, im_size, patch_size):
+        for col_idx in range(0, im_size, patch_size):
+            patch_idx = (row_idx//patch_size)*num_blocks + \
+                        (col_idx//patch_size)
+
+            img[row_idx:row_idx+patch_size, col_idx:col_idx+patch_size,:] = \
+                    np.reshape(patches[:,patch_idx], (patch_size, patch_size, \
+                        3), order='F')
+
+    return img
 
 
-# # Helper functions
-
-# In[6]:
+### Helper functions
 
 def weight_variable(shape):
     initial = tf.random_uniform(shape, minval = 0, maxval = 1)
     return tf.Variable(initial)
 
+def bias_variable(shape):
+    initial = tf.random_uniform(shape)
+    return tf.Variable(initial)
+
 def weight_init_prev():
     loaded_data = loadmat('ar_patch7_atoms1024-dict.mat')
-
-
-    return tf.transpose(tf.Variable(loaded_data['U'], dtype = tf.float32))
+    return tf.Variable(loaded_data['U'], dtype = tf.float32)
 
 def bias_variable(shape):
     initial = tf.constant(0.1, shape=shape)
@@ -41,12 +65,11 @@ def hard_thresholding(x,k):
                           validate_indices = False)
     return x_sparse
 
-def pinv(A):
-    return tf.matmul(tf.matrix_inverse(tf.matmul(tf.transpose(A), A)), tf.transpose(A))
 
-def ksparse_autoenc(x, W, NUM_NONZERO):
+
+def ksparse_autoenc(x, W, b, b_, NUM_NONZERO):
     # W = tf.Print(W, [W], "W: ")
-    h = tf.matmul(x, pinv(W))
+    h = tf.add(tf.matmul(tf.transpose(W), x), b)  
 
     '''
     Select max elements
@@ -56,10 +79,9 @@ def ksparse_autoenc(x, W, NUM_NONZERO):
     """
     Reconstruction
     """
-    y = tf.matmul(h_sparse, W)
+    y = tf.add(tf.matmul(W, h_sparse), b_)
 
     return y
-
 
 
 if __name__ == '__main__':
@@ -74,6 +96,8 @@ if __name__ == '__main__':
 
     TRAIN_BATCH_SIZE = 1e3
 
+    save_path_prefix = 'normal_nnsc_init/'
+
 
     # # Loading training data
 
@@ -87,28 +111,39 @@ if __name__ == '__main__':
     base_path = os.getcwd()
 
 
-    x = tf.placeholder(tf.float32, [TRAIN_BATCH_SIZE, VEC_LENGTH])
+    x = tf.placeholder(tf.float32, [VEC_LENGTH, TRAIN_BATCH_SIZE])
     max_nonzero = tf.placeholder(tf.int32, [])
 
-    # W = weight_variable([NUM_ATOMS, VEC_LENGTH])
+    # W = weight_variable([VEC_LENGTH, NUM_ATOMS])
     W = weight_init_prev()
+    b = bias_variable([NUM_ATOMS, TRAIN_BATCH_SIZE])
+    b_ = bias_variable([VEC_LENGTH, TRAIN_BATCH_SIZE])
 
-    y = ksparse_autoenc(x, W, max_nonzero)
+    y = ksparse_autoenc(x, W, b, b_, max_nonzero)
+
+    # Defining L2 loss
     loss = tf.nn.l2_loss(x-y)
 
-    train_step = tf.train.AdagradOptimizer(0.1).minimize(loss)
+    # Train using Adagrad
+    train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
 
 
-    # # Learning
+    ### Learning
 
-
-    init = tf.initialize_all_variables()
+    init = tf.global_variables_initializer()
+    init1 = tf.local_variables_initializer()
     saver = tf.train.Saver()
-
 
 
     sess = tf.Session()
     sess.run(init)
+    sess.run(init1)
+
+    # Save initialization of W
+    w_np = {'U':sess.run(W)}
+    # Storing w as mat file
+    dict_img = create_image(w_np['U'], IM_EDGE)
+    imsave(save_path_prefix + 'dict_init.png', dict_img)
 
 
     """
@@ -129,18 +164,20 @@ if __name__ == '__main__':
         num_items = TRAIN_BATCH_SIZE
         end_idx = start_idx+num_items
         while(end_idx<input_data.shape[1]):
-            sess.run(train_step, feed_dict=
-                    {x:np.transpose(input_data[:, start_idx:end_idx]), 
-                        max_nonzero:NUM_NONZERO})
+            for step in range(2000):
+                sess.run(train_step, feed_dict=
+                        {x:input_data[:, start_idx:end_idx], 
+                            max_nonzero:NUM_NONZERO})
             start_idx = end_idx
             end_idx = start_idx+num_items
             
     print("Low Sparsity Optimization Finished!")
-    saver.save(sess,"./trainedModelNorm_lowsparse.ckpt")
 
     w_np = {'U':sess.run(W)}
     # Storing w as mat file
-    savemat('dict_low.mat', w_np)
+    savemat(save_path_prefix + 'dict_low.mat', w_np)
+    dict_img = create_image(w_np['U'], IM_EDGE)
+    imsave(save_path_prefix + 'dict_low.png', dict_img)
 
 
 
@@ -148,7 +185,7 @@ if __name__ == '__main__':
     Run with medium sparsity
     """
 
-    NUM_NONZERO = 60
+    NUM_NONZERO = 80
 
     # Loop over all mat files
     for dataset in training_mat_set:
@@ -162,18 +199,20 @@ if __name__ == '__main__':
         num_items = TRAIN_BATCH_SIZE
         end_idx = start_idx+num_items
         while(end_idx<input_data.shape[1]):
-            sess.run(train_step, feed_dict=
-                    {x:np.transpose(input_data[:, start_idx:end_idx]), 
-                        max_nonzero:NUM_NONZERO})
+            for step in range(2000):
+                sess.run(train_step, feed_dict=
+                        {x:input_data[:, start_idx:end_idx], 
+                            max_nonzero:NUM_NONZERO})
             start_idx = end_idx
             end_idx = start_idx+num_items
             
     print("Medium Sparsity Optimization Finished!")
-    saver.save(sess,"./trainedModelNorm_medsparse.ckpt")
 
     w_np = {'U':sess.run(W)}
     # Storing w as mat file
-    savemat('dict_med.mat', w_np)
+    savemat(save_path_prefix + 'dict_med.mat', w_np)
+    dict_img = create_image(w_np['U'], IM_EDGE)
+    imsave(save_path_prefix + 'dict_med.png', dict_img)
 
     """
     Run with higher sparsity
@@ -192,19 +231,25 @@ if __name__ == '__main__':
         num_items = TRAIN_BATCH_SIZE
         end_idx = start_idx+num_items
         while(end_idx<input_data.shape[1]):
-            sess.run(train_step, feed_dict=
-                    {x:np.transpose(input_data[:, start_idx:end_idx]), 
-                        max_nonzero:NUM_NONZERO})
+            for step in range(2000):
+                sess.run(train_step, feed_dict=
+                        {x:input_data[:, start_idx:end_idx], 
+                            max_nonzero:NUM_NONZERO})
             start_idx = end_idx
             end_idx = start_idx+num_items
             
     print("High Sparsity Optimization Finished!")
-    saver.save(sess,"./trainedModelNorm_highsparse.ckpt")
+    saver.save(sess,save_path_prefix + "./trainedModelNorm_highsparse.ckpt")
 
     w_np = {'U':sess.run(W)}
-    # Storing w as mat file
-    savemat('dict_high.mat', w_np)
-
-
 
     sess.close()
+
+
+    # Storing w as mat file
+    savemat(save_path_prefix + 'dict_high.mat', w_np)
+
+    dict_img = create_image(w_np['U'], IM_EDGE)
+    imsave(save_path_prefix + 'dict_high.png', dict_img)
+
+    

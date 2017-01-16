@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 import numpy as np
+from scipy.io import loadmat
 from scipy.misc import imresize
 import math
 from make_sparse_op import make_sparse
@@ -44,8 +45,13 @@ def weight_variable(shape):
     return tf.Variable(initial)
 
 
+def load_nnsc_dict():
+    loaded = loadmat('ar_patch7_atoms1024-dict.mat')
+    return tf.Variable(loaded['U'], dtype=tf.float32)
+
+
 def bias_variable(shape):
-    initial = tf.ones(shape)
+    initial = tf.zeros(shape)
     return tf.Variable(initial)
 
 

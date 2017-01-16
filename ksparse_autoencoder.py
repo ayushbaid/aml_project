@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     NUM_ATOMS = 1024
 
-    TRAIN_BATCH_SIZE = 1000
+    TRAIN_BATCH_SIZE = 200
 
     save_path_prefix = 'normal_nnsc_init/'
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     max_nonzero = tf.placeholder(tf.int32, [], name='max_nonzero')
 
     # W = weight_variable([VEC_LENGTH, NUM_ATOMS])
-    W = ksparse_base.weight_init_prev()
+    W = ksparse_base.load_nnsc_dict()
 
     b = ksparse_base.bias_variable([NUM_ATOMS, 1])
     b_ = ksparse_base.bias_variable([VEC_LENGTH, 1])

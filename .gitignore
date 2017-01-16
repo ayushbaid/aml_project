@@ -93,3 +93,8 @@ ENV/
 
 # Test folder mat files
 test/*.mat
+test/*.npy
+events.out.*
+
+# Checkpoints
+checkpoint

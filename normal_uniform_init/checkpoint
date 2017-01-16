@@ -1,2 +1,2 @@
-model_checkpoint_path: "trainedModelNorm_highsparse.ckpt"
-all_model_checkpoint_paths: "trainedModelNorm_highsparse.ckpt"
+model_checkpoint_path: "trainedModelNorm.ckpt"
+all_model_checkpoint_paths: "trainedModelNorm.ckpt"

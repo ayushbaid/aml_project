@@ -98,3 +98,6 @@ events.out.*
 
 # Checkpoints
 checkpoint
+
+# Tensorflow mnist data
+MNIST_DATA/*

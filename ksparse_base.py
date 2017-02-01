@@ -8,7 +8,7 @@ import math
 from make_sparse_op import make_sparse
 
 
-def create_image(patches, patch_size):
+def create_image(patches, patch_size, num_channels):
     """To display patches in a collage."""
     patches = np.squeeze(patches)
     num_patches = np.shape(patches)[1]
@@ -21,7 +21,7 @@ def create_image(patches, patch_size):
 
     patches = np.divide(patches - min_vals, max_vals - min_vals)
 
-    img = np.zeros((im_size, im_size, 3))
+    img = np.zeros((im_size, im_size, num_channels))
 
     num_blocks = im_size // patch_size
 
@@ -32,16 +32,17 @@ def create_image(patches, patch_size):
 
             img[row_idx:row_idx + patch_size, col_idx:col_idx +
                 patch_size, :] = np.reshape(patches[:, patch_idx],
-                                            (patch_size, patch_size, 3),
-                                            order='F')
+                                            (patch_size, patch_size,
+                                             num_channels), order='F')
 
+    img = np.squeeze(img)
     return imresize(img, 10.0, 'nearest')
 
 # Helper functions
 
 
 def weight_variable(shape):
-    initial = tf.random_normal(shape, mean=0, stddev=0.5)
+    initial = tf.random_uniform(shape, minval=0, maxval=0.5)
     return tf.Variable(initial)
 
 
@@ -57,6 +58,7 @@ def bias_variable(shape):
 
 def ksparse_autoenc_withbias(x, W, b, b_, NUM_NONZERO):
     """K-sparse Autoencoder with bias in linear layers."""
+    # W = tf.nn.l2_normalize(W, dim=0)
     h = tf.add(tf.matmul(W, x, transpose_a=True, transpose_b=True,
                          name='mult_encoder'), b, name='add_encoder')
 
@@ -67,7 +69,7 @@ def ksparse_autoenc_withbias(x, W, b, b_, NUM_NONZERO):
     y = tf.add(tf.matmul(W, h_sparse, name='mult_decoder'),
                b_, name='add_decoder')
 
-    return tf.transpose(y)
+    return tf.transpose(y), W
 
 
 def ksparse_autoenc_withoutbias(x, W, NUM_NONZERO):
